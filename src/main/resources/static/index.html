@@ -10,6 +10,7 @@
       color-scheme: light dark;
       --bg: #f5f5f7;
       --card: #ffffff;
+      --tile: #f5f5f7;
       --text: #1d1d1f;
       --secondary: #6e6e73;
       --separator: rgba(0, 0, 0, 0.08);
@@ -29,6 +30,7 @@
       :root {
         --bg: #000000;
         --card: #1c1c1e;
+        --tile: #2c2c2e;
         --text: #f5f5f7;
         --secondary: #98989d;
         --separator: rgba(255, 255, 255, 0.1);
@@ -144,7 +146,7 @@
     .col.current .today-dot { background: var(--blue); }
 
     /* ---------- Two-column lower section ---------- */
-      .lower { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-top: 16px; align-items: start; }
+    .lower { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; margin-top: 16px; align-items: start; }
 
     .week-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
     .pill {
@@ -170,7 +172,9 @@
       opacity: 0;
       transition: opacity 0.15s, background 0.15s, color 0.15s;
     }
-    .row:hover .delete-btn, .delete-btn:focus-visible { opacity: 1; }
+    .row:hover .delete-btn,
+    .course-tile:hover .delete-btn,
+    .delete-btn:focus-visible { opacity: 1; }
     .delete-btn:hover { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
     @media (hover: none) { .delete-btn { opacity: 1; } }
 
@@ -178,21 +182,49 @@
     .date-badge {
       width: 46px; flex-shrink: 0; text-align: center;
       border-radius: 10px; overflow: hidden;
-      background: var(--bg);
+      background: var(--tile);
     }
     .date-badge .m { background: var(--red); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 3px 0; }
     .date-badge .d { font-size: 20px; font-weight: 600; padding: 4px 0 5px; }
 
-    .countdown { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--bg); color: var(--secondary); white-space: nowrap; }
+    .countdown { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--tile); color: var(--secondary); white-space: nowrap; }
     .countdown.soon { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
 
     .empty { color: var(--secondary); padding: 28px 0 12px; text-align: center; font-size: 15px; }
     .error { text-align: center; color: var(--secondary); padding: 80px 0; font-size: 17px; }
 
+    /* ---------- Courses ---------- */
+    .courses-card { margin-top: 16px; }
+    .course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .course-tile {
+      position: relative;
+      background: var(--tile);
+      border-radius: 14px;
+      padding: 16px;
+      min-height: 112px;
+    }
+    .course-tile .stripe { width: 28px; height: 4px; border-radius: 2px; margin-bottom: 12px; }
+    .course-code { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; padding-right: 32px; }
+    .course-name { font-size: 14px; color: var(--secondary); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .course-meta { font-size: 13px; color: var(--secondary); margin-top: 12px; }
+    .course-tile .delete-btn { position: absolute; top: 12px; right: 12px; }
+    .new-course {
+      min-height: 112px;
+      border: 1.5px dashed var(--gray);
+      border-radius: 14px;
+      background: transparent;
+      color: var(--blue);
+      font-size: 15px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .new-course:hover { background: color-mix(in srgb, var(--blue) 8%, transparent); }
+
     .fade { animation: fade 0.5s ease both; }
     @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-    /* ---------- iOS-style bottom sheet ---------- */
+    /* ---------- iOS-style bottom sheets ---------- */
     .backdrop {
       position: fixed; inset: 0; z-index: 20;
       background: rgba(0, 0, 0, 0.35);
@@ -201,6 +233,7 @@
       opacity: 0; pointer-events: none;
       transition: opacity 0.35s ease;
     }
+    .backdrop.open { opacity: 1; pointer-events: auto; }
     .sheet {
       position: fixed; z-index: 21;
       left: 50%; bottom: 0;
@@ -213,10 +246,10 @@
       transform: translate(-50%, 105%);
       transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1);
     }
-    body.sheet-open .backdrop { opacity: 1; pointer-events: auto; }
-    body.sheet-open .sheet { transform: translate(-50%, 0); }
+    .sheet.open { transform: translate(-50%, 0); }
     @media (min-width: 761px) {
       .sheet { bottom: 32px; border-radius: 24px; transform: translate(-50%, calc(100% + 48px)); }
+      .sheet.open { transform: translate(-50%, 0); }
     }
 
     .grabber { width: 36px; height: 5px; border-radius: 3px; background: var(--gray); margin: 0 auto 12px; }
@@ -231,6 +264,7 @@
     .text-btn:disabled { color: var(--gray); cursor: default; }
 
     .section-label { font-size: 13px; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 6px 16px; }
+    .section-note { font-size: 13px; color: var(--secondary); margin: -18px 0 24px 16px; }
     .group { background: var(--group); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
     .field { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 0 16px 0 0; margin-left: 16px; border-top: 1px solid var(--separator); }
     .field:first-child { border-top: none; }
@@ -290,7 +324,7 @@
     <div class="brand"><div class="brand-mark"></div>LoadMap</div>
     <div class="nav-right">
       <div class="term">Fall 2026</div>
-      <button class="add-btn" id="open-sheet" aria-label="Add assignment">
+      <button class="add-btn" id="open-assignment" aria-label="Add assignment">
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
           <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
@@ -319,30 +353,37 @@
         <div id="upcoming"></div>
       </div>
     </section>
+
+    <section class="card courses-card fade">
+      <h2 class="card-title">Courses</h2>
+      <p class="card-caption">Your classes this term</p>
+      <div class="course-grid" id="course-grid"></div>
+    </section>
   </main>
 
-  <!-- Add assignment sheet -->
   <div class="backdrop" id="backdrop"></div>
-  <form class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" autocomplete="off">
+
+  <!-- New assignment sheet -->
+  <form class="sheet" id="assignment-sheet" role="dialog" aria-modal="true" aria-labelledby="assignment-title" autocomplete="off">
     <div class="grabber"></div>
     <div class="sheet-header">
-      <button type="button" class="text-btn left" id="cancel-sheet">Cancel</button>
-      <h2 id="sheet-title">New Assignment</h2>
-      <button type="submit" class="text-btn right" id="submit-sheet" disabled>Add</button>
+      <button type="button" class="text-btn left" data-close>Cancel</button>
+      <h2 id="assignment-title">New Assignment</h2>
+      <button type="submit" class="text-btn right" id="a-submit" disabled>Add</button>
     </div>
 
     <div class="group">
       <div class="field">
-        <input class="full" id="f-title" type="text" placeholder="Title" maxlength="80">
+        <input class="full" id="a-title" type="text" placeholder="Title" maxlength="80">
       </div>
       <div class="field">
-        <label for="f-course">Course</label>
-        <select id="f-course"></select>
+        <label for="a-course">Course</label>
+        <select id="a-course"></select>
       </div>
     </div>
 
     <p class="section-label">Type</p>
-    <div class="segmented" id="f-type">
+    <div class="segmented" id="a-type">
       <button type="button" data-type="EXAM">Exam</button>
       <button type="button" data-type="QUIZ">Quiz</button>
       <button type="button" data-type="HOMEWORK" class="active">Homework</button>
@@ -353,19 +394,47 @@
     <p class="section-label">Details</p>
     <div class="group">
       <div class="field">
-        <label for="f-date">Due</label>
-        <input id="f-date" type="date">
+        <label for="a-date">Due</label>
+        <input id="a-date" type="date">
       </div>
       <div class="field">
-        <label for="f-points">Points</label>
-        <input id="f-points" type="number" min="0" step="1" placeholder="100" inputmode="numeric">
+        <label for="a-points">Points</label>
+        <input id="a-points" type="number" min="0" step="1" placeholder="100" inputmode="numeric">
       </div>
       <div class="field">
-        <label for="f-weight">Share of Grade</label>
-        <input id="f-weight" type="number" min="0" max="100" step="0.1" placeholder="10" inputmode="decimal">
+        <label for="a-weight">Share of Grade</label>
+        <input id="a-weight" type="number" min="0" max="100" step="0.1" placeholder="10" inputmode="decimal">
         <span class="suffix">%</span>
       </div>
     </div>
+  </form>
+
+  <!-- New course sheet -->
+  <form class="sheet" id="course-sheet" role="dialog" aria-modal="true" aria-labelledby="course-title" autocomplete="off">
+    <div class="grabber"></div>
+    <div class="sheet-header">
+      <button type="button" class="text-btn left" data-close>Cancel</button>
+      <h2 id="course-title">New Course</h2>
+      <button type="submit" class="text-btn right" id="c-submit" disabled>Add</button>
+    </div>
+
+    <div class="group">
+      <div class="field">
+        <input class="full" id="c-code" type="text" placeholder="Course code (e.g. CMSC 201)" maxlength="20">
+      </div>
+      <div class="field">
+        <input class="full" id="c-name" type="text" placeholder="Course name" maxlength="80">
+      </div>
+    </div>
+
+    <p class="section-label">Details</p>
+    <div class="group">
+      <div class="field">
+        <label for="c-credits">Credits</label>
+        <input id="c-credits" type="number" min="0" max="12" step="1" value="3" inputmode="numeric">
+      </div>
+    </div>
+    <p class="section-note">You can add assignments to this course once it's created.</p>
   </form>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -413,6 +482,9 @@
     function titleCase(word) {
       return word.charAt(0) + word.slice(1).toLowerCase();
     }
+    function plural(n, word) {
+      return `${n} ${word}${n === 1 ? "" : "s"}`;
+    }
     function el(tag, className, text) {
       const e = document.createElement(tag);
       if (className) e.className = className;
@@ -451,6 +523,7 @@
       const workload = await workloadRes.json();
       assignments = await assignmentsRes.json();
       courses = await coursesRes.json();
+      courses.sort((a, b) => a.code.localeCompare(b.code));
 
       const byWeek = {};
       workload.forEach(w => byWeek[w.weekOf] = w);
@@ -464,8 +537,7 @@
       }
 
       courseColor = {};
-      [...courses].sort((a, b) => a.code.localeCompare(b.code))
-        .forEach((c, i) => courseColor[c.code] = COURSE_PALETTE[i % COURSE_PALETTE.length]);
+      courses.forEach((c, i) => courseColor[c.code] = COURSE_PALETTE[i % COURSE_PALETTE.length]);
     }
 
     function renderAll(selectKey) {
@@ -476,6 +548,7 @@
       renderStats();
       renderChart();
       renderUpcoming();
+      renderCourses();
 
       const target = weeks.find(w => w.key === selectKey)
         || weeks.find(w => w.key === toKey(mondayOf(today())))
@@ -657,6 +730,37 @@
       });
     }
 
+    // ---------- Courses ----------
+    function renderCourses() {
+      const grid = document.getElementById("course-grid");
+      grid.innerHTML = "";
+
+      courses.forEach(c => {
+        const count = assignments.filter(a => a.course.id === c.id).length;
+        const tile = el("div", "course-tile");
+
+        const stripe = el("div", "stripe");
+        stripe.style.background = courseColor[c.code];
+        tile.appendChild(stripe);
+        tile.appendChild(el("div", "course-code", c.code));
+        tile.appendChild(el("div", "course-name", c.name));
+        tile.appendChild(el("div", "course-meta", `${plural(c.credits, "credit")} · ${plural(count, "assignment")}`));
+
+        const del = el("button", "delete-btn", "×");
+        del.setAttribute("aria-label", `Delete ${c.code}`);
+        del.addEventListener("click", () => deleteCourse(c, count));
+        tile.appendChild(del);
+
+        grid.appendChild(tile);
+      });
+
+      const add = el("button", "new-course");
+      add.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+      add.appendChild(document.createTextNode("New Course"));
+      add.addEventListener("click", openCourseSheet);
+      grid.appendChild(add);
+    }
+
     // ---------- Delete ----------
     async function deleteAssignment(a, weekKey) {
       try {
@@ -670,87 +774,171 @@
       }
     }
 
-    // ---------- Add assignment sheet ----------
-    const sheet = document.getElementById("sheet");
-    const fTitle = document.getElementById("f-title");
-    const fCourse = document.getElementById("f-course");
-    const fDate = document.getElementById("f-date");
-    const fPoints = document.getElementById("f-points");
-    const fWeight = document.getElementById("f-weight");
-    const submitBtn = document.getElementById("submit-sheet");
+    async function deleteCourse(c, count) {
+      const message = count > 0
+        ? `Delete ${c.code} and its ${plural(count, "assignment")}? This can't be undone.`
+        : `Delete ${c.code}?`;
+      if (!confirm(message)) return;
+      try {
+        const res = await fetch(`/api/courses/${c.id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error();
+        await loadData();
+        renderAll();
+        toast(`Deleted ${c.code}`);
+      } catch {
+        toast("Couldn't delete. Try again.");
+      }
+    }
+
+    // ---------- Sheets (shared) ----------
+    const backdrop = document.getElementById("backdrop");
+
+    function showSheet(sheet, focusEl) {
+      backdrop.classList.add("open");
+      sheet.classList.add("open");
+      setTimeout(() => focusEl.focus(), 350);
+    }
+    function closeSheets() {
+      backdrop.classList.remove("open");
+      document.querySelectorAll(".sheet").forEach(s => s.classList.remove("open"));
+    }
+
+    // ---------- New assignment sheet ----------
+    const aSheet = document.getElementById("assignment-sheet");
+    const aTitle = document.getElementById("a-title");
+    const aCourse = document.getElementById("a-course");
+    const aDate = document.getElementById("a-date");
+    const aPoints = document.getElementById("a-points");
+    const aWeight = document.getElementById("a-weight");
+    const aSubmit = document.getElementById("a-submit");
 
     function setType(type) {
       selectedType = type;
-      document.querySelectorAll("#f-type button").forEach(b => b.classList.toggle("active", b.dataset.type === type));
+      document.querySelectorAll("#a-type button").forEach(b => b.classList.toggle("active", b.dataset.type === type));
     }
 
-    function openSheet() {
-      fCourse.innerHTML = "";
+    function openAssignmentSheet() {
+      if (courses.length === 0) {
+        toast("Add a course first");
+        openCourseSheet();
+        return;
+      }
+      aCourse.innerHTML = "";
       courses.forEach(c => {
         const opt = el("option", "", c.code);
         opt.value = c.id;
-        fCourse.appendChild(opt);
+        aCourse.appendChild(opt);
       });
-      sheet.reset();
+      aSheet.reset();
       setType("HOMEWORK");
-      fDate.value = toKey(today());
-      validate();
-      document.body.classList.add("sheet-open");
-      setTimeout(() => fTitle.focus(), 350);
+      aDate.value = toKey(today());
+      validateAssignment();
+      showSheet(aSheet, aTitle);
     }
 
-    function closeSheet() {
-      document.body.classList.remove("sheet-open");
-    }
-
-    function validate() {
-      const weight = fWeight.value === "" ? 0 : Number(fWeight.value);
-      const points = fPoints.value === "" ? 0 : Number(fPoints.value);
-      const valid = fTitle.value.trim() !== ""
-        && fCourse.value !== ""
-        && fDate.value !== ""
+    function validateAssignment() {
+      const weight = aWeight.value === "" ? 0 : Number(aWeight.value);
+      const points = aPoints.value === "" ? 0 : Number(aPoints.value);
+      aSubmit.disabled = !(aTitle.value.trim() !== ""
+        && aCourse.value !== ""
+        && aDate.value !== ""
         && points >= 0
-        && weight >= 0 && weight <= 100;
-      submitBtn.disabled = !valid;
+        && weight >= 0 && weight <= 100);
     }
 
     async function submitAssignment(event) {
       event.preventDefault();
-      if (submitBtn.disabled) return;
-      submitBtn.disabled = true;
+      if (aSubmit.disabled) return;
+      aSubmit.disabled = true;
 
       const body = {
-        title: fTitle.value.trim(),
-        dueDate: fDate.value,
-        points: fPoints.value === "" ? 0 : Number(fPoints.value),
-        weightPercent: fWeight.value === "" ? 0 : Number(fWeight.value),
+        title: aTitle.value.trim(),
+        dueDate: aDate.value,
+        points: aPoints.value === "" ? 0 : Number(aPoints.value),
+        weightPercent: aWeight.value === "" ? 0 : Number(aWeight.value),
         type: selectedType
       };
 
       try {
-        const res = await fetch(`/api/courses/${fCourse.value}/assignments`, {
+        const res = await fetch(`/api/courses/${aCourse.value}/assignments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body)
         });
         if (!res.ok) throw new Error();
-        closeSheet();
+        closeSheets();
         await loadData();
         renderAll(toKey(mondayOf(parseDate(body.dueDate))));
         toast(`Added “${body.title}”`);
       } catch {
         toast("Couldn't save. Try again.");
-        submitBtn.disabled = false;
+        aSubmit.disabled = false;
       }
     }
 
-    document.getElementById("open-sheet").addEventListener("click", openSheet);
-    document.getElementById("cancel-sheet").addEventListener("click", closeSheet);
-    document.getElementById("backdrop").addEventListener("click", closeSheet);
-    document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
-    document.querySelectorAll("#f-type button").forEach(b => b.addEventListener("click", () => setType(b.dataset.type)));
-    sheet.addEventListener("input", validate);
-    sheet.addEventListener("submit", submitAssignment);
+    // ---------- New course sheet ----------
+    const cSheet = document.getElementById("course-sheet");
+    const cCode = document.getElementById("c-code");
+    const cName = document.getElementById("c-name");
+    const cCredits = document.getElementById("c-credits");
+    const cSubmit = document.getElementById("c-submit");
+
+    function openCourseSheet() {
+      cSheet.reset();
+      cCredits.value = 3;
+      validateCourse();
+      showSheet(cSheet, cCode);
+    }
+
+    function validateCourse() {
+      const credits = Number(cCredits.value);
+      const code = cCode.value.trim().toUpperCase();
+      const duplicate = courses.some(c => c.code.toUpperCase() === code);
+      cSubmit.disabled = !(code !== ""
+        && !duplicate
+        && cName.value.trim() !== ""
+        && cCredits.value !== ""
+        && credits >= 0 && credits <= 12);
+    }
+
+    async function submitCourse(event) {
+      event.preventDefault();
+      if (cSubmit.disabled) return;
+      cSubmit.disabled = true;
+
+      const body = {
+        code: cCode.value.trim().toUpperCase(),
+        name: cName.value.trim(),
+        credits: Number(cCredits.value)
+      };
+
+      try {
+        const res = await fetch("/api/courses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) throw new Error();
+        closeSheets();
+        await loadData();
+        renderAll();
+        toast(`Added ${body.code}`);
+      } catch {
+        toast("Couldn't save. Try again.");
+        cSubmit.disabled = false;
+      }
+    }
+
+    // ---------- Wire up events ----------
+    document.getElementById("open-assignment").addEventListener("click", openAssignmentSheet);
+    document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeSheets));
+    backdrop.addEventListener("click", closeSheets);
+    document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheets(); });
+    document.querySelectorAll("#a-type button").forEach(b => b.addEventListener("click", () => setType(b.dataset.type)));
+    aSheet.addEventListener("input", validateAssignment);
+    aSheet.addEventListener("submit", submitAssignment);
+    cSheet.addEventListener("input", validateCourse);
+    cSheet.addEventListener("submit", submitCourse);
 
     // ---------- Start ----------
     async function init() {
