@@ -292,6 +292,48 @@
       box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 3px 1px rgba(0, 0, 0, 0.04);
     }
 
+    /* ---------- Account menu ---------- */
+    [hidden] { display: none !important; }
+    .account { position: relative; }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: none; cursor: pointer;
+      background: linear-gradient(135deg, #64d2ff, var(--blue));
+      color: #fff; font-size: 14px; font-weight: 600;
+    }
+    .menu {
+      position: absolute; right: 0; top: 44px; min-width: 220px;
+      background: var(--card);
+      border: 1px solid var(--separator);
+      border-radius: 14px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+      padding: 6px;
+      opacity: 0; transform: scale(0.96) translateY(-4px);
+      transform-origin: top right;
+      pointer-events: none;
+      transition: opacity 0.15s, transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .menu.open { opacity: 1; transform: none; pointer-events: auto; }
+    .menu-email {
+      font-size: 13px; color: var(--secondary);
+      padding: 8px 10px 10px; margin-bottom: 4px;
+      border-bottom: 1px solid var(--separator);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .menu-item {
+      display: block; width: 100%; text-align: left;
+      background: none; border: none; color: var(--red);
+      font-size: 15px; padding: 8px 10px; border-radius: 8px;
+      cursor: pointer;
+    }
+    .menu-item:hover { background: var(--seg-bg); }
+
+    /* ---------- Welcome card for new users ---------- */
+    .welcome { text-align: center; padding: 48px 24px; margin-bottom: 16px; }
+    .welcome h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+    .welcome p { color: var(--secondary); font-size: 17px; margin: 0 auto 24px; max-width: 460px; }
+    .welcome .add-btn { display: inline-flex; padding: 10px 20px 10px 16px; font-size: 15px; }
+
     /* ---------- Toast notification ---------- */
     .toast {
       position: fixed; z-index: 30; top: 72px; left: 50%;
@@ -330,12 +372,30 @@
         </svg>
         Add
       </button>
+      <div class="account">
+        <button class="avatar" id="avatar" aria-label="Account" aria-haspopup="true"></button>
+        <div class="menu" id="menu" role="menu">
+          <div class="menu-email" id="menu-email"></div>
+          <button class="menu-item" id="sign-out" role="menuitem">Sign Out</button>
+        </div>
+      </div>
     </div>
   </nav>
 
   <main id="app">
     <h1 class="page-title fade">Workload</h1>
     <p class="page-subtitle fade">See your crunch weeks before they hit.</p>
+
+    <section class="card welcome fade" id="welcome" hidden>
+      <h2>Welcome to LoadMap</h2>
+      <p>Add your classes, then their exams and assignments. LoadMap will flag your crunch weeks before they hit.</p>
+      <button class="add-btn" id="welcome-add">
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Add Your First Course
+      </button>
+    </section>
 
     <section class="stats fade" id="stats"></section>
 
@@ -511,12 +571,22 @@
       toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
     }
 
+    // fetch() wrapper: if nobody is logged in (401), send them to the login page
+    async function api(url, options) {
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        window.location.href = "/login.html";
+        throw new Error("Not logged in");
+      }
+      return res;
+    }
+
     // ---------- Data ----------
     async function loadData() {
       const [workloadRes, assignmentsRes, coursesRes] = await Promise.all([
-        fetch("/api/workload"),
-        fetch("/api/assignments"),
-        fetch("/api/courses")
+        api("/api/workload"),
+        api("/api/assignments"),
+        api("/api/courses")
       ]);
       if (!workloadRes.ok || !assignmentsRes.ok || !coursesRes.ok) throw new Error("API error");
 
@@ -541,6 +611,7 @@
     }
 
     function renderAll(selectKey) {
+      document.getElementById("welcome").hidden = courses.length > 0;
       document.getElementById("stats").innerHTML = "";
       document.getElementById("chart").innerHTML = "";
       document.getElementById("upcoming").innerHTML = "";
@@ -764,7 +835,7 @@
     // ---------- Delete ----------
     async function deleteAssignment(a, weekKey) {
       try {
-        const res = await fetch(`/api/assignments/${a.id}`, { method: "DELETE" });
+        const res = await api(`/api/assignments/${a.id}`, { method: "DELETE" });
         if (!res.ok) throw new Error();
         await loadData();
         renderAll(weekKey);
@@ -780,7 +851,7 @@
         : `Delete ${c.code}?`;
       if (!confirm(message)) return;
       try {
-        const res = await fetch(`/api/courses/${c.id}`, { method: "DELETE" });
+        const res = await api(`/api/courses/${c.id}`, { method: "DELETE" });
         if (!res.ok) throw new Error();
         await loadData();
         renderAll();
@@ -860,7 +931,7 @@
       };
 
       try {
-        const res = await fetch(`/api/courses/${aCourse.value}/assignments`, {
+        const res = await api(`/api/courses/${aCourse.value}/assignments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body)
@@ -913,7 +984,7 @@
       };
 
       try {
-        const res = await fetch("/api/courses", {
+        const res = await api("/api/courses", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body)
@@ -933,19 +1004,45 @@
     document.getElementById("open-assignment").addEventListener("click", openAssignmentSheet);
     document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeSheets));
     backdrop.addEventListener("click", closeSheets);
-    document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheets(); });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") {
+        closeSheets();
+        document.getElementById("menu").classList.remove("open");
+      }
+    });
     document.querySelectorAll("#a-type button").forEach(b => b.addEventListener("click", () => setType(b.dataset.type)));
     aSheet.addEventListener("input", validateAssignment);
     aSheet.addEventListener("submit", submitAssignment);
     cSheet.addEventListener("input", validateCourse);
     cSheet.addEventListener("submit", submitCourse);
 
+    // ---------- Account menu ----------
+    const menu = document.getElementById("menu");
+    document.getElementById("avatar").addEventListener("click", e => {
+      e.stopPropagation();
+      menu.classList.toggle("open");
+    });
+    document.addEventListener("click", e => {
+      if (!menu.contains(e.target)) menu.classList.remove("open");
+    });
+    document.getElementById("sign-out").addEventListener("click", async () => {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/login.html";
+    });
+    document.getElementById("welcome-add").addEventListener("click", openCourseSheet);
+
     // ---------- Start ----------
     async function init() {
       try {
+        const meRes = await api("/api/auth/me");
+        const me = await meRes.json();
+        document.getElementById("avatar").textContent = me.email.charAt(0).toUpperCase();
+        document.getElementById("menu-email").textContent = me.email;
+
         await loadData();
         renderAll();
       } catch (err) {
+        if (err.message === "Not logged in") return;  // already redirecting to the login page
         const app = document.getElementById("app");
         app.innerHTML = "";
         app.appendChild(el("div", "error", "Couldn't load your workload. Is the server running?"));

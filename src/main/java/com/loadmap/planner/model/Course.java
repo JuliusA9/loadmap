@@ -1,6 +1,7 @@
 package com.loadmap.planner.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 public class Course {
@@ -10,6 +11,11 @@ public class Course {
     private String code;     // e.g. "IS 147"
     private String name;     // e.g. "Intro to Computer Programming"
     private int credits;
+
+    @ManyToOne
+    @JoinColumn(name = "owner_id")
+    @JsonIgnore  // never send the owner (or their password hash!) to the browser
+    private User owner;
 
     public Course() {}  // Spring needs an empty constructor to build objects from JSON
 
@@ -28,5 +34,7 @@ public class Course {
     public void setName(String name) { this.name = name; }
     public int getCredits() { return credits; }
     public void setCredits(int credits) { this.credits = credits; }
+    public User getOwner() { return owner; }
+    public void setOwner(User owner) { this.owner = owner; }
     
 }

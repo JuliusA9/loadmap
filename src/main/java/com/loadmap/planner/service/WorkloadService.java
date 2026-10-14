@@ -32,11 +32,11 @@ public class WorkloadService {
     }
 
     // Group assignments by week and score each week
-    public List<WeekLoad> weeklyLoad() {
+        public List<WeekLoad> weeklyLoad(Long ownerId) {
         // TreeMap keeps the weeks sorted by date
         Map<LocalDate, List<Assignment>> byWeek = new TreeMap<>();
 
-        for (Assignment a : assignmentRepo.findAll()) {
+        for (Assignment a : assignmentRepo.findByCourseOwnerIdOrderByDueDate(ownerId)) {
             LocalDate monday = a.getDueDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
             byWeek.computeIfAbsent(monday, k -> new ArrayList<>()).add(a);
         }
