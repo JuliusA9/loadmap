@@ -1,6 +1,11 @@
 package com.loadmap.planner.model;
 
+import jakarta.persistence.*;
+
+@Entity
 public class Course {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String code;     // e.g. "IS 147"
     private String name;     // e.g. "Intro to Computer Programming"
