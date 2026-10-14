@@ -43,4 +43,13 @@ public class AssignmentController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+   // DELETE /api/assignments/5 → remove an assignment
+    @DeleteMapping("/assignments/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        if (!assignmentRepo.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        assignmentRepo.deleteById(id);
+        return ResponseEntity.noContent().build();  // 204 = success, nothing to send back
+    } 
 }
