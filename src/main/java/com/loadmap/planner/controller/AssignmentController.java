@@ -4,6 +4,7 @@ import com.loadmap.planner.model.Assignment;
 import com.loadmap.planner.repository.AssignmentRepository;
 import com.loadmap.planner.repository.CourseRepository;
 import com.loadmap.planner.service.CurrentUserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,12 +38,13 @@ public class AssignmentController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // POST /api/courses/1/assignments → add to one of MY courses
+    // POST /api/courses/1/assignments → add to one of MY courses (validated)
     @PostMapping("/courses/{courseId}/assignments")
-    public ResponseEntity<Assignment> add(@PathVariable Long courseId, @RequestBody Assignment assignment) {
+    public ResponseEntity<Assignment> add(@PathVariable Long courseId, @Valid @RequestBody Assignment assignment) {
         return courseRepo.findByIdAndOwnerId(courseId, currentUser.get().getId())
                 .map(course -> {
                     assignment.setId(null);
+                    assignment.setTitle(assignment.getTitle().trim());
                     assignment.setCourse(course);
                     return ResponseEntity.ok(assignmentRepo.save(assignment));
                 })

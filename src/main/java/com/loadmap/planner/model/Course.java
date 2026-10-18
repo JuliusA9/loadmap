@@ -1,6 +1,7 @@
 package com.loadmap.planner.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
@@ -8,9 +9,18 @@ public class Course {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String code;     // e.g. "IS 147"
-    private String name;     // e.g. "Intro to Computer Programming"
-    private int credits;
+
+    @NotBlank(message = "Course code is required.")
+    @Size(max = 20, message = "Course code can be at most 20 characters.")
+    private String code;
+
+    @NotBlank(message = "Course name is required.")
+    @Size(max = 80, message = "Course name can be at most 80 characters.")
+    private String name;
+
+    @Min(value = 0, message = "Credits can't be negative.")
+    @Max(value = 12, message = "Credits can be at most 12.")
+        private int credits;
 
     @ManyToOne
     @JoinColumn(name = "owner_id")

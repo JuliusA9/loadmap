@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface CourseRepository extends JpaRepository<Course, Long> {
     List<Course> findByOwnerIdOrderByCode(Long ownerId);
     Optional<Course> findByIdAndOwnerId(Long id, Long ownerId);
+    boolean existsByOwnerIdAndCodeIgnoreCase(Long ownerId, String code);
 }

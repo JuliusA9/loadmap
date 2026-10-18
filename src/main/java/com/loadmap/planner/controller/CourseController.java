@@ -4,10 +4,13 @@ import com.loadmap.planner.model.Course;
 import com.loadmap.planner.repository.AssignmentRepository;
 import com.loadmap.planner.repository.CourseRepository;
 import com.loadmap.planner.service.CurrentUserService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/courses")
@@ -37,12 +40,22 @@ public class CourseController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // POST /api/courses → add a course owned by me
+    // POST /api/courses → add a course owned by me (validated)
     @PostMapping
-    public Course add(@RequestBody Course course) {
+    public ResponseEntity<?> add(@Valid @RequestBody Course course) {
+        Long ownerId = currentUser.get().getId();
+        String code = course.getCode().trim().toUpperCase();
+
+        if (repo.existsByOwnerIdAndCodeIgnoreCase(ownerId, code)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "You already have a course called " + code + "."));
+        }
+
         course.setId(null);
+        course.setCode(code);
+        course.setName(course.getName().trim());
         course.setOwner(currentUser.get());
-        return repo.save(course);
+        return ResponseEntity.ok(repo.save(course));
     }
 
     // DELETE /api/courses/1 → delete one of MY courses and its assignments
