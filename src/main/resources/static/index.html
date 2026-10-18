@@ -17,7 +17,7 @@
       --nav: rgba(245, 245, 247, 0.72);
       --gray: #d2d2d7;
       --green: #34c759;
-      --orange: #ff9500;
+      --orange: #ff9500
       --red: #ff3b30;
       --blue: #0071e3;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 28px rgba(0, 0, 0, 0.06);
@@ -78,7 +78,13 @@
       background: linear-gradient(135deg, var(--green), var(--orange) 55%, var(--red));
     }
     .nav-right { display: flex; align-items: center; gap: 16px; }
-    .term { color: var(--secondary); font-size: 14px; }
+    .term {
+      background: none; border: none; cursor: pointer;
+      color: var(--secondary); font-size: 14px;
+      padding: 6px 10px; border-radius: 8px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .term:hover { background: var(--seg-bg); color: var(--text); }
     .add-btn {
       display: flex; align-items: center; gap: 6px;
       background: var(--blue); color: #fff;
@@ -327,6 +333,8 @@
       cursor: pointer;
     }
     .menu-item:hover { background: var(--seg-bg); }
+    .menu-item.neutral { color: var(--text); }
+    .sheet-error { font-size: 14px; color: var(--red); margin: -12px 0 16px 16px; min-height: 20px; }
 
     /* ---------- Welcome card for new users ---------- */
     .welcome { text-align: center; padding: 48px 24px; margin-bottom: 16px; }
@@ -365,7 +373,7 @@
   <nav>
     <div class="brand"><div class="brand-mark"></div>LoadMap</div>
     <div class="nav-right">
-      <div class="term">Fall 2026</div>
+      <button class="term" id="term" aria-label="Edit semester"></button>
       <button class="add-btn" id="open-assignment" aria-label="Add assignment">
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
           <path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -376,6 +384,7 @@
         <button class="avatar" id="avatar" aria-label="Account" aria-haspopup="true"></button>
         <div class="menu" id="menu" role="menu">
           <div class="menu-email" id="menu-email"></div>
+          <button class="menu-item neutral" id="menu-semester" role="menuitem">Semester Settings</button>
           <button class="menu-item" id="sign-out" role="menuitem">Sign Out</button>
         </div>
       </div>
@@ -497,11 +506,41 @@
     <p class="section-note">You can add assignments to this course once it's created.</p>
   </form>
 
+  <!-- Semester settings sheet -->
+  <form class="sheet" id="semester-sheet" role="dialog" aria-modal="true" aria-labelledby="semester-title" autocomplete="off">
+    <div class="grabber"></div>
+    <div class="sheet-header">
+      <button type="button" class="text-btn left" data-close id="s-cancel">Cancel</button>
+      <h2 id="semester-title">Semester</h2>
+      <button type="submit" class="text-btn right" id="s-submit" disabled>Save</button>
+    </div>
+
+    <div class="group">
+      <div class="field">
+        <input class="full" id="s-name" type="text" placeholder="Term name (e.g. Fall 2026)" maxlength="40">
+      </div>
+    </div>
+
+    <p class="section-label">Dates</p>
+    <div class="group">
+      <div class="field">
+        <label for="s-start">Starts</label>
+        <input id="s-start" type="date">
+      </div>
+      <div class="field">
+        <label for="s-end">Ends</label>
+        <input id="s-end" type="date">
+      </div>
+    </div>
+    <p class="sheet-error" id="s-error" role="alert"></p>
+    <p class="section-note">Use your first day of classes and your last day of finals. The chart shows one bar per week in between.</p>
+  </form>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
-    const SEMESTER_START = new Date(2026, 7, 24);   // Aug 24 (months start at 0)
-    const SEMESTER_END   = new Date(2026, 11, 14);  // Dec 14
+    // Each user's term comes from /api/settings. Until they set one, show the next 16 weeks.
+    let semester = null;  // { termName, semesterStart, semesterEnd }
 
     const LEVEL_COLOR = { FREE: "var(--gray)", LIGHT: "var(--green)", MODERATE: "var(--orange)", HEAVY: "var(--red)" };
     const COURSE_PALETTE = ["#0a84ff", "#bf5af2", "#ff9f0a", "#30d158", "#ff375f", "#64d2ff"];
@@ -562,6 +601,10 @@
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
     }
 
+    function hasSemester() {
+      return semester && semester.semesterStart && semester.semesterEnd;
+    }
+
     let toastTimer;
     function toast(message) {
       const t = document.getElementById("toast");
@@ -583,23 +626,37 @@
 
     // ---------- Data ----------
     async function loadData() {
-      const [workloadRes, assignmentsRes, coursesRes] = await Promise.all([
+      const [workloadRes, assignmentsRes, coursesRes, settingsRes] = await Promise.all([
         api("/api/workload"),
         api("/api/assignments"),
-        api("/api/courses")
+        api("/api/courses"),
+        api("/api/settings")
       ]);
-      if (!workloadRes.ok || !assignmentsRes.ok || !coursesRes.ok) throw new Error("API error");
+      if (!workloadRes.ok || !assignmentsRes.ok || !coursesRes.ok || !settingsRes.ok) throw new Error("API error");
 
       const workload = await workloadRes.json();
       assignments = await assignmentsRes.json();
       courses = await coursesRes.json();
       courses.sort((a, b) => a.code.localeCompare(b.code));
+      semester = await settingsRes.json();
 
       const byWeek = {};
       workload.forEach(w => byWeek[w.weekOf] = w);
 
+      // The chart's range: the user's term, or the next 16 weeks if they haven't set one
+      let rangeStart, rangeEnd;
+      if (hasSemester()) {
+        rangeStart = mondayOf(parseDate(semester.semesterStart));  // weeks start on Monday, like the API
+        rangeEnd = parseDate(semester.semesterEnd);
+      } else {
+        rangeStart = mondayOf(today());
+        rangeEnd = new Date(rangeStart);
+        rangeEnd.setDate(rangeEnd.getDate() + 7 * 15);
+      }
+      document.getElementById("term").textContent = hasSemester() ? semester.termName : "Set Semester";
+
       weeks = [];
-      for (let d = new Date(SEMESTER_START); d <= SEMESTER_END; d.setDate(d.getDate() + 7)) {
+      for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 7)) {
         const date = new Date(d);
         const key = toKey(date);
         const data = byWeek[key] || { score: 0, level: "FREE" };
@@ -1000,6 +1057,66 @@
       }
     }
 
+    // ---------- Semester sheet ----------
+    const sSheet = document.getElementById("semester-sheet");
+    const sName = document.getElementById("s-name");
+    const sStart = document.getElementById("s-start");
+    const sEnd = document.getElementById("s-end");
+    const sSubmit = document.getElementById("s-submit");
+    const sError = document.getElementById("s-error");
+
+    function openSemesterSheet() {
+      menu.classList.remove("open");
+      sName.value = hasSemester() ? semester.termName : "";
+      sStart.value = hasSemester() ? semester.semesterStart : "";
+      sEnd.value = hasSemester() ? semester.semesterEnd : "";
+      sError.textContent = "";
+      validateSemester();
+      showSheet(sSheet, sName);
+    }
+
+    function validateSemester() {
+      let message = "";
+      if (sStart.value && sEnd.value) {
+        const days = (parseDate(sEnd.value) - parseDate(sStart.value)) / 86400000;
+        if (days <= 0) message = "End date must be after the start date.";
+        else if (days > 366) message = "A term can be at most a year long.";
+      }
+      sError.textContent = message;
+      sSubmit.disabled = !(sName.value.trim() !== "" && sStart.value && sEnd.value && message === "");
+    }
+
+    async function submitSemester(event) {
+      event.preventDefault();
+      if (sSubmit.disabled) return;
+      sSubmit.disabled = true;
+
+      try {
+        const res = await api("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            termName: sName.value.trim(),
+            semesterStart: sStart.value,
+            semesterEnd: sEnd.value
+          })
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          sError.textContent = data.error || "Couldn't save. Try again.";
+          sSubmit.disabled = false;
+          return;
+        }
+        closeSheets();
+        await loadData();
+        renderAll();
+        toast(`Saved ${sName.value.trim()}`);
+      } catch {
+        toast("Couldn't save. Try again.");
+        sSubmit.disabled = false;
+      }
+    }
+
     // ---------- Wire up events ----------
     document.getElementById("open-assignment").addEventListener("click", openAssignmentSheet);
     document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeSheets));
@@ -1015,6 +1132,9 @@
     aSheet.addEventListener("submit", submitAssignment);
     cSheet.addEventListener("input", validateCourse);
     cSheet.addEventListener("submit", submitCourse);
+    sSheet.addEventListener("input", validateSemester);
+    sSheet.addEventListener("submit", submitSemester);
+    document.getElementById("term").addEventListener("click", openSemesterSheet);
 
     // ---------- Account menu ----------
     const menu = document.getElementById("menu");
@@ -1029,6 +1149,7 @@
       await fetch("/api/auth/logout", { method: "POST" });
       window.location.href = "/login.html";
     });
+    document.getElementById("menu-semester").addEventListener("click", openSemesterSheet);
     document.getElementById("welcome-add").addEventListener("click", openCourseSheet);
 
     // ---------- Start ----------
@@ -1041,6 +1162,7 @@
 
         await loadData();
         renderAll();
+        if (!hasSemester()) openSemesterSheet();  // first visit: ask for the term dates
       } catch (err) {
         if (err.message === "Not logged in") return;  // already redirecting to the login page
         const app = document.getElementById("app");
