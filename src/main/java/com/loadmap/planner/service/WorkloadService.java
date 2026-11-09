@@ -37,6 +37,9 @@ public class WorkloadService {
         Map<LocalDate, List<Assignment>> byWeek = new TreeMap<>();
 
         for (Assignment a : assignmentRepo.findByCourseOwnerIdOrderByDueDate(ownerId)) {
+            if (a.isCompleted()) {
+                continue;  // finished work doesn't add to the load
+            }
             LocalDate monday = a.getDueDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
             byWeek.computeIfAbsent(monday, k -> new ArrayList<>()).add(a);
         }

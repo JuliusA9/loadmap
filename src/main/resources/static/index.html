@@ -17,7 +17,7 @@
       --nav: rgba(245, 245, 247, 0.72);
       --gray: #d2d2d7;
       --green: #34c759;
-      --orange: #ff9500
+      --orange: #ff9500;
       --red: #ff3b30;
       --blue: #0071e3;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 28px rgba(0, 0, 0, 0.06);
@@ -183,6 +183,26 @@
     .delete-btn:focus-visible { opacity: 1; }
     .delete-btn:hover { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
     @media (hover: none) { .delete-btn { opacity: 1; } }
+
+    #a-error:empty, #c-error:empty { display: none; }  /* no blank gap until there's a message */
+    /* Done checkbox + tappable rows */
+    .check {
+      width: 22px; height: 22px; flex-shrink: 0;
+      border: 2px solid var(--gray); border-radius: 50%;
+      background: transparent; cursor: pointer; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .check:hover { border-color: var(--green); }
+    .check svg { opacity: 0; transition: opacity 0.15s; }
+    .row.done .check { background: var(--green); border-color: var(--green); }
+    .row.done .check svg { opacity: 1; }
+    .row.done .row-title { text-decoration: line-through; color: var(--secondary); }
+    .row.done .dot, .row.done .row-right { opacity: 0.5; }
+    .row-main.editable { cursor: pointer; border-radius: 8px; }
+    .row-main.editable:hover .row-title { color: var(--blue); }
+    .course-tile { cursor: pointer; transition: background 0.15s; }
+    .course-tile:hover { background: color-mix(in srgb, var(--blue) 6%, var(--tile)); }
 
     /* Calendar-app style date badge */
     .date-badge {
@@ -440,6 +460,7 @@
       <h2 id="assignment-title">New Assignment</h2>
       <button type="submit" class="text-btn right" id="a-submit" disabled>Add</button>
     </div>
+    <p class="sheet-error" id="a-error" role="alert"></p>
 
     <div class="group">
       <div class="field">
@@ -486,6 +507,7 @@
       <h2 id="course-title">New Course</h2>
       <button type="submit" class="text-btn right" id="c-submit" disabled>Add</button>
     </div>
+    <p class="sheet-error" id="c-error" role="alert"></p>
 
     <div class="group">
       <div class="field">
@@ -503,7 +525,7 @@
         <input id="c-credits" type="number" min="0" max="12" step="1" value="3" inputmode="numeric">
       </div>
     </div>
-    <p class="section-note">You can add assignments to this course once it's created.</p>
+    <p class="section-note" id="c-note">You can add assignments to this course once it's created.</p>
   </form>
 
   <!-- Semester settings sheet -->
@@ -550,6 +572,8 @@
     let courses = [];
     let courseColor = {};
     let selectedType = "HOMEWORK";
+    let editingAssignment = null;  // null = the sheet is adding a new one
+    let editingCourse = null;
 
     // ---------- Small helpers ----------
     function parseDate(str) {               // "2026-10-19" -> local Date
@@ -692,6 +716,7 @@
       const thisWeek = weeks.find(w => w.key === toKey(thisMonday));
       const nextHeavy = weeks.find(w => w.level === "HEAVY" && w.date >= thisMonday);
       const dueSoon = assignments.filter(a => {
+        if (a.completed) return false;
         const n = daysUntil(parseDate(a.dueDate));
         return n >= 0 && n <= 14;
       }).length;
@@ -799,15 +824,28 @@
       const list = el("div");
       items.forEach(a => {
         const due = parseDate(a.dueDate);
-        const row = el("div", "row");
+        const row = el("div", "row" + (a.completed ? " done" : ""));
+
+        const check = el("button", "check");
+        check.innerHTML = `<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        check.setAttribute("role", "checkbox");
+        check.setAttribute("aria-checked", String(a.completed));
+        check.setAttribute("aria-label", `Mark ${a.title} ${a.completed ? "not done" : "done"}`);
+        check.addEventListener("click", () => toggleCompleted(a, week.key));
+        row.appendChild(check);
 
         const dot = el("span", "dot");
         dot.style.background = courseColor[a.course.code] || "var(--gray)";
         row.appendChild(dot);
 
-        const main = el("div", "row-main");
+        const main = el("div", "row-main editable");
+        main.tabIndex = 0;
+        main.setAttribute("role", "button");
+        main.setAttribute("aria-label", `Edit ${a.title}`);
         main.appendChild(el("div", "row-title", a.title));
-        main.appendChild(el("div", "row-sub", `${a.course.code} · ${titleCase(a.type)}`));
+        main.appendChild(el("div", "row-sub", `${a.course.code} · ${titleCase(a.type)}${a.completed ? " · Done" : ""}`));
+        main.addEventListener("click", () => openAssignmentSheet(a));
+        main.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openAssignmentSheet(a); } });
         row.appendChild(main);
 
         const right = el("div", "row-right");
@@ -829,7 +867,7 @@
     function renderUpcoming() {
       const box = document.getElementById("upcoming");
       const upcoming = assignments
-        .filter(a => daysUntil(parseDate(a.dueDate)) >= 0)
+        .filter(a => !a.completed && daysUntil(parseDate(a.dueDate)) >= 0)
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
         .slice(0, 5);
 
@@ -865,18 +903,24 @@
 
       courses.forEach(c => {
         const count = assignments.filter(a => a.course.id === c.id).length;
+        const done = assignments.filter(a => a.course.id === c.id && a.completed).length;
         const tile = el("div", "course-tile");
+        tile.tabIndex = 0;
+        tile.setAttribute("role", "button");
+        tile.setAttribute("aria-label", `Edit ${c.code}`);
+        tile.addEventListener("click", () => openCourseSheet(c));
+        tile.addEventListener("keydown", e => { if (e.target === tile && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCourseSheet(c); } });
 
         const stripe = el("div", "stripe");
         stripe.style.background = courseColor[c.code];
         tile.appendChild(stripe);
         tile.appendChild(el("div", "course-code", c.code));
         tile.appendChild(el("div", "course-name", c.name));
-        tile.appendChild(el("div", "course-meta", `${plural(c.credits, "credit")} · ${plural(count, "assignment")}`));
+        tile.appendChild(el("div", "course-meta", `${plural(c.credits, "credit")} · ${plural(count, "assignment")}${done ? ` · ${done} done` : ""}`));
 
         const del = el("button", "delete-btn", "×");
         del.setAttribute("aria-label", `Delete ${c.code}`);
-        del.addEventListener("click", () => deleteCourse(c, count));
+        del.addEventListener("click", e => { e.stopPropagation(); deleteCourse(c, count); });
         tile.appendChild(del);
 
         grid.appendChild(tile);
@@ -885,8 +929,25 @@
       const add = el("button", "new-course");
       add.innerHTML = `<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
       add.appendChild(document.createTextNode("New Course"));
-      add.addEventListener("click", openCourseSheet);
+      add.addEventListener("click", () => openCourseSheet());
       grid.appendChild(add);
+    }
+
+    // ---------- Mark done ----------
+    async function toggleCompleted(a, weekKey) {
+      try {
+        const res = await api(`/api/assignments/${a.id}/completed`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ completed: !a.completed })
+        });
+        if (!res.ok) throw new Error();
+        await loadData();
+        renderAll(weekKey);
+        toast(a.completed ? `“${a.title}” marked not done` : `Done: “${a.title}”`);
+      } catch {
+        toast("Couldn't update. Try again.");
+      }
     }
 
     // ---------- Delete ----------
@@ -939,13 +1000,15 @@
     const aPoints = document.getElementById("a-points");
     const aWeight = document.getElementById("a-weight");
     const aSubmit = document.getElementById("a-submit");
+    const aError = document.getElementById("a-error");
 
     function setType(type) {
       selectedType = type;
       document.querySelectorAll("#a-type button").forEach(b => b.classList.toggle("active", b.dataset.type === type));
     }
 
-    function openAssignmentSheet() {
+    // Pass an assignment to edit it; call with nothing to add a new one
+    function openAssignmentSheet(existing) {
       if (courses.length === 0) {
         toast("Add a course first");
         openCourseSheet();
@@ -958,8 +1021,21 @@
         aCourse.appendChild(opt);
       });
       aSheet.reset();
-      setType("HOMEWORK");
-      aDate.value = toKey(today());
+      aError.textContent = "";
+      editingAssignment = existing || null;
+      document.getElementById("assignment-title").textContent = existing ? "Edit Assignment" : "New Assignment";
+      aSubmit.textContent = existing ? "Save" : "Add";
+      if (existing) {
+        aTitle.value = existing.title;
+        aCourse.value = existing.course.id;
+        aDate.value = existing.dueDate;
+        aPoints.value = existing.points;
+        aWeight.value = existing.weightPercent;
+        setType(existing.type);
+      } else {
+        setType("HOMEWORK");
+        aDate.value = toKey(today());
+      }
       validateAssignment();
       showSheet(aSheet, aTitle);
     }
@@ -987,17 +1063,29 @@
         type: selectedType
       };
 
+      const editing = editingAssignment;
       try {
-        const res = await api(`/api/courses/${aCourse.value}/assignments`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
-        if (!res.ok) throw new Error();
+        const res = editing
+          ? await api(`/api/assignments/${editing.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...body, course: { id: Number(aCourse.value) } })
+            })
+          : await api(`/api/courses/${aCourse.value}/assignments`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body)
+            });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          aError.textContent = data.error || "Couldn't save. Try again.";
+          aSubmit.disabled = false;
+          return;
+        }
         closeSheets();
         await loadData();
         renderAll(toKey(mondayOf(parseDate(body.dueDate))));
-        toast(`Added “${body.title}”`);
+        toast(editing ? `Saved “${body.title}”` : `Added “${body.title}”`);
       } catch {
         toast("Couldn't save. Try again.");
         aSubmit.disabled = false;
@@ -1010,10 +1098,23 @@
     const cName = document.getElementById("c-name");
     const cCredits = document.getElementById("c-credits");
     const cSubmit = document.getElementById("c-submit");
+    const cError = document.getElementById("c-error");
 
-    function openCourseSheet() {
+    // Pass a course to edit it; call with nothing to add a new one
+    function openCourseSheet(existing) {
       cSheet.reset();
-      cCredits.value = 3;
+      cError.textContent = "";
+      editingCourse = existing || null;
+      document.getElementById("course-title").textContent = existing ? "Edit Course" : "New Course";
+      cSubmit.textContent = existing ? "Save" : "Add";
+      document.getElementById("c-note").hidden = !!existing;
+      if (existing) {
+        cCode.value = existing.code;
+        cName.value = existing.name;
+        cCredits.value = existing.credits;
+      } else {
+        cCredits.value = 3;
+      }
       validateCourse();
       showSheet(cSheet, cCode);
     }
@@ -1021,7 +1122,8 @@
     function validateCourse() {
       const credits = Number(cCredits.value);
       const code = cCode.value.trim().toUpperCase();
-      const duplicate = courses.some(c => c.code.toUpperCase() === code);
+      const duplicate = courses.some(c => c.code.toUpperCase() === code && (!editingCourse || c.id !== editingCourse.id));
+      cError.textContent = duplicate ? `You already have a course called ${code}.` : "";
       cSubmit.disabled = !(code !== ""
         && !duplicate
         && cName.value.trim() !== ""
@@ -1040,17 +1142,23 @@
         credits: Number(cCredits.value)
       };
 
+      const editing = editingCourse;
       try {
-        const res = await api("/api/courses", {
-          method: "POST",
+        const res = await api(editing ? `/api/courses/${editing.id}` : "/api/courses", {
+          method: editing ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body)
         });
-        if (!res.ok) throw new Error();
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          cError.textContent = data.error || "Couldn't save. Try again.";
+          cSubmit.disabled = false;
+          return;
+        }
         closeSheets();
         await loadData();
         renderAll();
-        toast(`Added ${body.code}`);
+        toast(editing ? `Saved ${body.code}` : `Added ${body.code}`);
       } catch {
         toast("Couldn't save. Try again.");
         cSubmit.disabled = false;
@@ -1118,7 +1226,7 @@
     }
 
     // ---------- Wire up events ----------
-    document.getElementById("open-assignment").addEventListener("click", openAssignmentSheet);
+    document.getElementById("open-assignment").addEventListener("click", () => openAssignmentSheet());
     document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", closeSheets));
     backdrop.addEventListener("click", closeSheets);
     document.addEventListener("keydown", e => {
@@ -1150,7 +1258,7 @@
       window.location.href = "/login.html";
     });
     document.getElementById("menu-semester").addEventListener("click", openSemesterSheet);
-    document.getElementById("welcome-add").addEventListener("click", openCourseSheet);
+    document.getElementById("welcome-add").addEventListener("click", () => openCourseSheet());
 
     // ---------- Start ----------
     async function init() {

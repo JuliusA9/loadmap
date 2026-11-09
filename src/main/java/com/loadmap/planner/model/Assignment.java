@@ -28,6 +28,11 @@ public class Assignment {
     @Enumerated(EnumType.STRING)     // store "EXAM" as text, not a number
     private AssignmentType type;
 
+    // Done assignments stay on the list but stop counting toward the workload.
+    // The column default lets Hibernate add it to a table that already has rows.
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean completed;
+
     @ManyToOne                       // many assignments belong to one course
     @JoinColumn(name = "course_id")  // the column linking to the course table
     private Course course;
@@ -55,6 +60,8 @@ public class Assignment {
     public void setWeightPercent(double weightPercent) { this.weightPercent = weightPercent; }
     public AssignmentType getType() { return type; }
     public void setType(AssignmentType type) { this.type = type; }
+    public boolean isCompleted() { return completed; }
+    public void setCompleted(boolean completed) { this.completed = completed; }
     public Course getCourse() { return course; }
     public void setCourse(Course course) { this.course = course; }
 }

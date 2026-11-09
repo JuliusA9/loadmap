@@ -10,4 +10,5 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     List<Course> findByOwnerIdOrderByCode(Long ownerId);
     Optional<Course> findByIdAndOwnerId(Long id, Long ownerId);
     boolean existsByOwnerIdAndCodeIgnoreCase(Long ownerId, String code);
+    boolean existsByOwnerIdAndCodeIgnoreCaseAndIdNot(Long ownerId, String code, Long id);
 }

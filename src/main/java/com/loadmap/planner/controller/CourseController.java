@@ -58,6 +58,26 @@ public class CourseController {
         return ResponseEntity.ok(repo.save(course));
     }
 
+    // PUT /api/courses/1 → change the code, name or credits of one of MY courses
+    @PutMapping("/{id}")
+    public ResponseEntity<?> update(@PathVariable Long id, @Valid @RequestBody Course changes) {
+        Long ownerId = currentUser.get().getId();
+        String code = changes.getCode().trim().toUpperCase();
+
+        return repo.findByIdAndOwnerId(id, ownerId)
+                .<ResponseEntity<?>>map(course -> {
+                    if (repo.existsByOwnerIdAndCodeIgnoreCaseAndIdNot(ownerId, code, id)) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .body(Map.of("error", "You already have a course called " + code + "."));
+                    }
+                    course.setCode(code);
+                    course.setName(changes.getName().trim());
+                    course.setCredits(changes.getCredits());
+                    return ResponseEntity.ok(repo.save(course));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     // DELETE /api/courses/1 → delete one of MY courses and its assignments
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
